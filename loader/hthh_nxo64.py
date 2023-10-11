@@ -851,17 +851,17 @@ else:
 
     def ida_make_offset(f, ea, addend=0):
         if f.armv7:
-            idc.MakeDword(ea)
-            idc.OpOffEx(ea, 0, idc.REF_OFF32, -1, 0, addend)
+            ida_bytes.create_data(ea, FF_DWORD, 4, ida_idaapi.BADADDR)
+            idc.op_offset(ea, 0, idc.REF_OFF32, -1, 0, addend)
         else:
-            idc.MakeQword(ea)
-            idc.OpOffEx(ea, 0, idc.REF_OFF64, -1, 0, addend)
+            ida_bytes.create_data(ea, FF_QWORD, 8, ida_idaapi.BADADDR)
+            idc.op_offset(ea, 0, idc.REF_OFF64, -1, 0, addend)
 
     def find_bl_targets(text_start, text_end):
         targets = set()
         for pco in xrange(0, text_end - text_start, 4):
             pc = text_start + pco
-            d = idc.Dword(pc)
+            d = idc.get_wide_dword(pc)
             if (d & 0xfc000000) == 0x94000000:
                 imm = d & 0x3ffffff
                 if imm & 0x2000000:
@@ -874,7 +874,7 @@ else:
         return targets
 
     def load_file(li, neflags, fmt):
-        idaapi.set_processor_type('arm', idaapi.SETPROC_ALL|idaapi.SETPROC_FATAL)
+        idaapi.set_processor_type('arm', idaapi.SETPROC_LOADER_NON_FATAL|idaapi.SETPROC_LOADER)
 
         options = FORMAT_OPTIONS[fmt]
 
@@ -911,13 +911,13 @@ else:
 
         if idx == 0:
             if f.armv7:
-                idc.SetShortPrm(idc.INF_LFLAGS, idc.GetShortPrm(idc.INF_LFLAGS) | idc.LFLG_PC_FLAT)
+                idc.set_inf_attr(idc.INF_LFLAGS, idc.get_inf_attr(idc.INF_LFLAGS) | idc.LFLG_PC_FLAT)
             else:
-                idc.SetShortPrm(idc.INF_LFLAGS, idc.GetShortPrm(idc.INF_LFLAGS) | idc.LFLG_64BIT)
+                idc.set_inf_attr(idc.INF_LFLAGS, idc.get_inf_attr(idc.INF_LFLAGS) | idc.LFLG_64BIT)
 
-            idc.SetCharPrm(idc.INF_DEMNAMES, idaapi.DEMNAM_GCC3)
+            idc.set_inf_attr(idc.INF_DEMNAMES, idaapi.DEMNAM_GCC3)
             idaapi.set_compiler_id(idaapi.COMP_GNU)
-            idaapi.add_til2('gnulnx_arm' if f.armv7 else 'gnulnx_arm64', 1)
+            idaapi.add_til('gnulnx_arm' if f.armv7 else 'gnulnx_arm64', 1)
             # don't create tails
             idc.set_inf_attr(idc.INF_AF, idc.get_inf_attr(idc.INF_AF) & ~idc.AF_FTAIL)
 
@@ -993,7 +993,7 @@ else:
                 if s.type == STT_FUNC:
                     funcs.add(loadbase+s.value)
                     symend = loadbase+s.value+s.size
-                    if idc.Dword(symend) != 0:
+                    if idc.get_wide_dword(symend) != 0:
                         funcs.add(symend)
 
         got_name_lookup = {}
@@ -1035,7 +1035,7 @@ else:
                 plt_lookup = f.plt_lookup
                 for pco in xrange(0, f.textsize, 4):
                     pc = loadbase + pco
-                    d = idc.Dword(pc)
+                    d = idc.get_wide_dword(pc)
                     if (d & 0x7c000000) == (0x94000000 & 0x7c000000):
                         imm = d & 0x3ffffff
                         if imm & 0x2000000:
@@ -1050,7 +1050,7 @@ else:
 
             for pco in xrange(0, f.textsize, 4):
                 pc = loadbase + pco
-                d = idc.Dword(pc)
+                d = idc.get_wide_dword(pc)
                 if d == 0x14000001:
                     funcs.add(pc + 4)
 
